@@ -26,6 +26,8 @@ spec:
   resolution: DNS
   location: MESH_EXTERNAL
 ---
+# A virtualservice definition is needed in order to define
+# the TLS parameters for the HTTPS service. 
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:

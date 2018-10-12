@@ -1,50 +1,89 @@
 # Setup Instructions
 
 ## Basic setup 
-1. Start with a Kubernetes cluster 
-2. Download Istio 
+1. In order to follow this tutorial you will need an existing working 
+   Kubernetes cluster with version 1.10 or higher. We will assume that 
+   you have git and kubectl installed as well. 
+
+2. Download Tutorial
 ```
-curl -L https://git.io/getLatestIstio | sh -
-cd istio-1.0.2
-export PATH=$PWD/bin:$PATH
+git clone https://github.com/dstiliadis/tutorial.git
+cd tutorial 
 ```
 
-3. Apply CRDs. 
+3. Installing Istio in the Kubernetes Cluster
+This is done in two steps. First create the Custom Resource Definitions
+in Kubernetes that will allow us to use the standard kubectl command for 
+everything. 
 ```
-kubectl apply -f install/kubernetes/helm/istio/templates/crds.yaml
-```
-5. Install Istio
-```
-kubectl apply -f install/kubernetes/istio-demo-auth.yaml
+kubectl apply -f install/crds.yaml
 ```
 
-5. Start the bookinfo application without the injection.
+Now we can create all the necessary objects of an Istio deployment. We use 
+the simple mechanism of instantiating everything here. More advanced options
+and customization are available through Helm charts. 
+
+```
+kubectl apply -f install/istio-demo-auth.yaml
+```
+
+5. First we can start the bookinfo application without injecting the Istio
+configuration. You will notice that PODs are created without sidecars.
+
 ```
 kubectl apply -f samples/bookinfo/platform/kube/bookinfo.yaml
 ```
-6. Set the side car injector and redo
+
+View the sidecar deployment. 
+```
+kubectl get pods -o wide
+```
+
+Before proceeding we will delete the application in order to inject the sidecars.
+```
+kubectl delete -f samples/bookinfo/platform/kube/bookinfo.yaml
+```
+
+
+6. Automatic sidecar injection can be configured on per namespace basis.
+The following command will configure sidecar injection for the default
+namespace.
+
 ```
 kubectl label namespace default istio-injection=enabled
 ```
+
 7. Apply again the application and see that we now have the sidecars
 ```
 kubectl apply -f samples/bookinfo/platform/kube/bookinfo.yaml
 ```
+
+Retrieve the pods and services. Wait until they are all running. 
 ```
 kubectl get pods 
 kubectl get services
 ```
-9. Create the configuration for the ingress gateway 
+
+9. In order to be able to access the service from the Internet we need to 
+create the configuration for the ingress gateway.
+
 ```
 kubectl apply -f samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
-9. Get the Gateway IP and port 
+9. We must now find the gateway IP and Port 
 ```
 kubectl -n istio-system get service istio-ingressgateway 
 ```
-10. We did the cardinal sin .. (ie ..we are accessing through http ) .. This needs to be disabled by default .. but, we need certificates:
 
-11. Let's create the certificates, or just bin/tg :
+You will see the public IP under the EXTERNAL-IP column. The port is 80.
+
+10. We did the cardinal sin. We exposed the service over HTTP. We need to upgrade
+the service to TLS. In order to achieve that, we will need certificates for the 
+service. You can choose your favorite method to create a private CA and certificates
+or you can use the instructions bellow. 
+
+11. Create the certificates with the tg utility. This assumes you have Go installed in your laptop. Alternatively,
+a pre-compiled binary for Mac OSX is provided in bin/tg.
 ```
 go get -u github.com/aporeto-inc/tg
 ```
@@ -67,29 +106,27 @@ tg cert --name myclient --org "Acme Enterprises" \
    --ip 104.197.141.45
 ```
 
-Show the certificate and validate the IP 
-
+You can use openssl to inspect the certificate and understand what we have created:
 ```
 openssl x509 -in myclient-cert.pem -text
 ```
 
-Show the modifications in the secure service samples/bookinfo/networking/bookinfo-gateway-secure.yaml 
+In order to configure the secure gateway we will need to create a Kubernetes secrets 
+objects with the certificate and configure the gateway. The example yaml file 
+can be seen in: samples/bookinfo/networking/bookinfo-gateway-secure.yaml 
 
-Delete the previous gateway 
+First, delete the previous gateway 
 ```
 kubectl delete -f samples/bookinfo/networking/bookinfo-gateway.yaml
 ```
 
-Remove and apply the new service. Create kubernetes secrets and apply the security gateway service. 
+Create kubernetes secrets and apply the security gateway service. 
 ```
 kubectl create -n istio-system secret tls istio-ingressgateway-certs \
   --key certs/myclient-key.pem \
   --cert certs/myclient-cert.pem
-```
 
-Create the new ingress gateway with TLS enabled:
-```
-kubectl apply -f samples/bookinfo/networking/bookinfo-gateway-secure.yaml
+kubectl apply -f samples/bookinfo/networking/bookinfo-gateway-secure.yaml 
 ```
 
 Get the gateway and validate 
@@ -97,28 +134,41 @@ Get the gateway and validate
 kubectl describe gateway
 ```
 
-
-Go to https now ..At least we removed the cardinal sin .. 
+You can now reach the application at https://<your gateway IP>/productpage 
+Note, that your browser will not trust the private CA unless if you explicitly
+allow it. 
 
 ## Basic Traffic Management 
-12. Traffic Management 
-13. First we need to define the subsets (ie the available versions). This is done here:
+
+First we need to create the destination rules. This configures mTLS for all
+services and it also defines the subsets that can be used by the routing 
+rules to route traffic to different versions of the applicaiton. 
+
 ```
 kubectl apply -f samples/bookinfo/networking/destination-rule-all-mtls.yaml
 ```
-Try the service .. everything should work ..
 
-15. Virtual services .. capture the end points
+We can now create virtual services that will determine that all reviews 
+will be routed to a specific version of the application.
 ```
 kubectl apply -f samples/bookinfo/networking/virtual-service-all-v1.yaml
 ```
-Apply this service .. All reviews will be routed to v1 ..  no more stars in the picture 
+
+Apply this service .. All reviews will be routed to v1. If you reload the 
+product page you will notice that there are no ratings (ie stars) in the page. 
+
+We will now apply a different routing rule that will allow only a specific 
+user to access the reviews version 2. This is an easy demo, but note that 
+it is completely insecure. It works, because the applications are populating
+the end-user header in their traffic to other applications. This is not 
+verified by anyone.
 
 ```
 kubectl apply -f samples/bookinfo/networking/virtual-service-reviews-test-v2.yaml
 ```
 
-What this means is essentially that the user-identity is an http header .. make sure to mention that. 
+Login in the application as user jason (no password) and you should see the 
+rating again. 
 
 ## Circuit Breaking 
 Start a simple server and corresponding service 
