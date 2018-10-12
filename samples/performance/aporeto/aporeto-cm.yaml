@@ -1,0 +1,27 @@
+apiVersion: v1
+data:
+  aporeto.cid_url: https://api.preprod.aporeto.us
+  enforcerd.cacert: /var/lib/registration/ca.pem
+  enforcerd.force_register: "true"
+  enforcerd.log_format: ""
+  enforcerd.log_level: info
+  enforcerd.log_to_console: "true"
+  enforcerd.namespace: /flash/kube-perf
+  enforcerd.registration_cert: /var/lib/registration/registration-cert.pem
+  enforcerd.registration_cert_key: /var/lib/registration/registration-key.pem
+  enforcerd.tag: k8s:profile=kube-perf
+  ks.cacert: /opt/kube-squall/configuration/ca.pem
+  ks.cert: /opt/kube-squall/configuration/admin-cert.pem
+  ks.cert_key: /opt/kube-squall/configuration/admin-key.pem
+  ks.log_format: ""
+  ks.log_level: info
+  ks.namespace: /flash/kube-perf
+  ks.no_policies: "true"
+  ks.one_way_sync: "true"
+  ks.sync_interval: 15m
+  ks.token_renewal: 1h
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: aporeto-cm
+  namespace: kube-system

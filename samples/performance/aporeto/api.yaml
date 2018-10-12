@@ -1,0 +1,19 @@
+name: apispec
+description: My Demo API Service
+endpoints:
+- URI: "/admin/*"
+  scopes:
+  - $namespace=/flash/kube-perf/*
+  methods:
+  - GET
+- URI: "/internal/*"
+  scopes:
+  - $namespace=/flash/kube-perf/*
+  methods:
+  - GET
+- URI: "/public/*"
+  public: true
+  methods:
+  - GET
+associatedTags:
+- spec:api=demo

@@ -1,0 +1,10 @@
+name: net policy
+action: Allow
+description: "Allow All policy"
+object:
+- - $namespace=/flash/kube-perf/*
+- - $namespace=/flash/kube-perf
+propagate: true
+propagationHidden: false
+subject:
+- - $namespace=/flash/kube-perf/*

@@ -1,0 +1,13 @@
+services:
+name: demo.apowine.svc.cluster.local 
+associatedTags:
+  - service=demo
+selectors:
+- - role=backend
+exposedPort: 80
+exposedAPIs: 
+- - spec:api=demo 
+port: 80
+hosts:
+- "demo.apowine.svc.cluster.local"
+type: HTTP

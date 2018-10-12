@@ -1,0 +1,96 @@
+apiVersion: extensions/v1beta1
+kind: ReplicaSet
+metadata:
+  creationTimestamp: null
+  labels:
+    app: kube-squall
+  name: aporeto-kubesquall
+  namespace: kube-system
+spec:
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: kube-squall
+    spec:
+      containers:
+      - env:
+        - name: KUBESQUALL_CID_URL
+          valueFrom:
+            configMapKeyRef:
+              key: aporeto.cid_url
+              name: aporeto-cm
+        - name: KUBESQUALL_CERT
+          valueFrom:
+            configMapKeyRef:
+              key: ks.cert
+              name: aporeto-cm
+        - name: KUBESQUALL_MIDGARD_TOKEN_RENEW_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              key: ks.token_renewal
+              name: aporeto-cm
+        - name: KUBESQUALL_SYNC_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              key: ks.sync_interval
+              name: aporeto-cm
+        - name: KUBESQUALL_NO_POLICIES
+          valueFrom:
+            configMapKeyRef:
+              key: ks.no_policies
+              name: aporeto-cm
+        - name: KUBESQUALL_API
+          valueFrom:
+            configMapKeyRef:
+              key: aporeto.cid_url
+              name: aporeto-cm
+        - name: KUBESQUALL_CERT_KEY
+          valueFrom:
+            configMapKeyRef:
+              key: ks.cert_key
+              name: aporeto-cm
+        - name: KUBESQUALL_LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: ks.log_level
+              name: aporeto-cm
+        - name: KUBESQUALL_LOG_FORMAT
+          valueFrom:
+            configMapKeyRef:
+              key: ks.log_format
+              name: aporeto-cm
+        - name: KUBESQUALL_NAMESPACE
+          valueFrom:
+            configMapKeyRef:
+              key: ks.namespace
+              name: aporeto-cm
+        - name: KUBESQUALL_ONE_WAY_SYNC
+          valueFrom:
+            configMapKeyRef:
+              key: ks.one_way_sync
+              name: aporeto-cm
+        - name: KUBESQUALL_CACERT
+          valueFrom:
+            configMapKeyRef:
+              key: ks.cacert
+              name: aporeto-cm
+        - name: KUBESQUALL_API_URL
+          valueFrom:
+            configMapKeyRef:
+              key: aporeto.cid_url
+              name: aporeto-cm
+        image: aporeto/kube-squall:v1.88.2
+        imagePullPolicy: Always
+        name: kube-squall
+        resources: {}
+        volumeMounts:
+        - mountPath: /opt/kube-squall/configuration
+          name: certs
+      serviceAccountName: kube-squall-account
+      volumes:
+      - name: certs
+        secret:
+          secretName: aporeto-secrets
+status:
+  replicas: 0

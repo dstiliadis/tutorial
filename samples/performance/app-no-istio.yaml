@@ -1,0 +1,40 @@
+apiVersion: extensions/v1beta1
+kind: ReplicaSet 
+metadata:
+  labels:
+      app: demoapp
+      role: backend
+  name: demoapp 
+  namespace: noistio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demoapp 
+  template:
+    metadata:
+      labels:
+          app: demoapp 
+          role: backend
+    spec:
+      containers:
+        - image: dimitrihub/ademo:payload
+          imagePullPolicy: Always
+          name: demoapp 
+          ports:
+          - containerPort: 80
+          command: ["/demoapiserver" , "--payload", "4000"]
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: demo 
+  namespace: noistio
+spec:
+  selector:
+      app: demoapp 
+      role: backend
+  ports:
+    - port: 80
+      name: http 
+
