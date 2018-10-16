@@ -20,7 +20,7 @@ kubectl apply -f install/crds.yaml
 ```
 
 Now we can create all the necessary objects of an Istio deployment. We use 
-the simple mechanism of instantiating everything here. More advanced options
+the simple mechanism of instantiating all components erything here. More advanced options
 and customization are available through Helm charts. 
 
 ```
@@ -112,7 +112,7 @@ openssl x509 -in myclient-cert.pem -text
 ```
 
 In order to configure the secure gateway we will need to create a Kubernetes secrets 
-objects with the certificate and configure the gateway. The example yaml file 
+object with the certificate and configure the gateway. The example yaml file 
 can be seen in: samples/bookinfo/networking/bookinfo-gateway-secure.yaml 
 
 First, delete the previous gateway 
@@ -142,7 +142,8 @@ allow it.
 
 First we need to create the destination rules. This configures mTLS for all
 services and it also defines the subsets that can be used by the routing 
-rules to route traffic to different versions of the applicaiton. 
+rules to route traffic to different versions of the applicaiton. Subsets
+are defined using label selectors. 
 
 ```
 kubectl apply -f samples/bookinfo/networking/destination-rule-all-mtls.yaml
@@ -157,7 +158,7 @@ kubectl apply -f samples/bookinfo/networking/virtual-service-all-v1.yaml
 Apply this service .. All reviews will be routed to v1. If you reload the 
 product page you will notice that there are no ratings (ie stars) in the page. 
 
-We will now apply a different routing rule that will allow only a specific 
+We will now apply different routing rule that will allow only a specific 
 user to access the reviews version 2. This is an easy demo, but note that 
 it is completely insecure. It works, because the applications are populating
 the end-user header in their traffic to other applications. This is not 
@@ -171,7 +172,9 @@ Login in the application as user jason (no password) and you should see the
 rating again. 
 
 ## Circuit Breaking 
-Start a simple server and corresponding service 
+
+Start a simple server and corresponding service. We will limit the number of 
+concurrent connections towards a particular service. 
 
 ```
 kubectl apply -f samples/httpbin/httpbin.yaml
@@ -188,27 +191,28 @@ Let’s issue the get command
 wrk -c 5 -t 5 -d 5s http://httpbin:8000/get
 ```
 
-We get a baseline. 
+We get a baseline of performance. Note that there are no dropped requests.
 
-We apply a very basic circuit breaker that allows on concurrent request . Basic throttling.  Edit it and point out
-that we are enabling Mutual TLS and what would happen if we don't enable mutual TLS. 
+We apply a very basic circuit breaker that allows on concurrent request. 
+Basic throttling.   
 
 ```
 kubectl apply -f samples/httpbin/destinationpolicies/httpbin-circuit-breaker.yaml
 ```
 
-We can now repeat the test with 3 connections and see the results .. We can also repeat with just one connection and 
-see the results. 
+We can now repeat the test with 5 connections and see the results.
+We can also repeat with just one connection and see the results. 
 Lots of connections with errors that were throttled (aproximately 20% in the example above) 
 
 ## Telemetry 
 
-1. Start Grafana proxy in the background 
+1. Start Grafana proxy in the background.
 ```
 kubectl -n istio-system port-forward $(kubectl -n istio-system get pod -l app=grafana -o jsonpath='{.items[0].metadata.name}') 3000:3000 &
 ```
 
-2. Demonstrate briefly integration with OpenTracing (caveats: the application needs to be instrumented .. much larger topic .. we will not see in details)
+2. Demonstrate briefly integration with OpenTracing (caveats: the application needs to be instrumented .. much larger topic .. we will not cover here in details)
+
 ```
 kubectl port-forward -n istio-system $(kubectl get pod -n istio-system -l app=jaeger -o jsonpath='{.items[0].metadata.name}') 17000:16686 &
 ```
@@ -217,15 +221,17 @@ Start the browser on localhost 3000 and 17000 respectively.
 
 
 ## Fault Injection
-We will inject a delay in the response to see how the application will behave if the downstream node is not responding fast enough. 
+Our goal is to use mechanisms in the mesh to debug our applications. We will inject a delay in 
+the response to see how the application will behave if the downstream node is not 
+responding fast enough. 
 
-Apply a delay:
+We will apply a delay in the requests. 
 
 ```
 kubectl apply -f samples/bookinfo/networking/virtual-service-ratings-test-delay.yaml
 ```
 
-Login with user JAson and see what happens.
+Login with user Jason and see what happens.
 
 Go to Jaeger and see he fault and analyze what happened 
 
@@ -238,24 +244,24 @@ kubectl apply -f samples/sleep/sleep.yaml
 
 Apply the service entries that we are creating with all the configuration 
 Enter the container and try to access the service. It will fail. 
+Simple  curl to google.com.
 
 ```
 kubectl apply -f samples/external/services.yaml
 ```
 
-Go to the container and exec the command. 
-Now it will succeed. 
+Now from the containers we can access the external services. Note that services 
+must be whitelisted in this approach.
 
 
-## Mutual TLS authentication 
-First create a new namespace
+## Security: Mutual TLS authentication 
+
+First create a new namespace, where we will not inject the sidecars 
 ```
 kubectl create namespace insecure
 ```
 
-
 Let's create a basic server in this namespace:
-
 ```
 kubectl apply -f samples/httpbin/httpbin.yaml -n insecure
 ```
@@ -265,8 +271,8 @@ Create a client container:
 kubectl apply -f samples/sleep/sleep.yaml -n insecure
 ```
 
-Enter the sleep container and try a curl to the original service 
-
+Enter the sleep container and try a curl to the original service. This will
+fail since we are not presenting a certificate.
 ```
 curl -v httpbin.default:8000/get
 ```
@@ -286,8 +292,8 @@ But authentication doesn't mean authorization. Let's also look at the certificat
 kubectl exec wrk  -c istio-proxy -- cat /etc/certs/cert-chain.pem | openssl x509 -text
 ```
 
-The important item to discuss is the URI SAN and how this is used. This is the spiffee certificate. 
-Note, that it gets the default service acccount .. 
+The important item to focus is the URI SAN and how this is used. This is the Spiffee certificate. 
+Note, that the URI SAN is essentially based on the namespace and service account. 
 
 ## Simple Authorization
 
